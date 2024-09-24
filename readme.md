@@ -6,9 +6,10 @@ This project is designed to process PDF files, extract key information, and stor
 
 1. [Installation](#installation)
 2. [Running the Project](#running-the-project)
-3. [Running Unit Tests](#running-unit-tests)
-4. [Global Usage](#global-usage)
-5. [Project Structure](#project-structure)
+3. [Command-Line Options](#command-line-options)
+4. [Running Unit Tests](#running-unit-tests)
+5. [Global Usage](#global-usage)
+6. [Project Structure](#project-structure)
 
 ## Installation
 
@@ -39,6 +40,51 @@ python file_scanner.py /path/to/pdf/directory output.csv
 
 Replace `/path/to/pdf/directory` with the directory containing your PDF files, and `output.csv` with your desired output file name.
 
+## Command-Line Options
+
+The script supports the following command-line options:
+
+```
+usage: file_scanner.py [-h] [-n NAME] [-r] [-p PATTERN] [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}] directory csv_file
+
+Process PDF files in a directory and extract information.
+
+positional arguments:
+  directory             The directory to scan for PDF files.
+  csv_file              The CSV file to write the extracted information.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n NAME, --name NAME  The name to use in the LLaMA query (default: Pauline OLTMANNS)
+  -r, --recursive       Scan subdirectories recursively
+  -p PATTERN, --pattern PATTERN
+                        File pattern to match (default: *.pdf)
+  -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set the logging level
+```
+
+Examples:
+
+1. Process all PDF files in a directory and its subdirectories:
+   ```
+   python file_scanner.py /path/to/pdfs output.csv -r
+   ```
+
+2. Process only files matching a specific pattern:
+   ```
+   python file_scanner.py /path/to/pdfs output.csv -p "invoice*.pdf"
+   ```
+
+3. Set a custom name for the LLaMA query:
+   ```
+   python file_scanner.py /path/to/pdfs output.csv -n "John Doe"
+   ```
+
+4. Set the logging level to DEBUG:
+   ```
+   python file_scanner.py /path/to/pdfs output.csv -l DEBUG
+   ```
+
 ## Running Unit Tests
 
 To run the unit tests:
@@ -57,13 +103,13 @@ The PDF Information Extractor consists of several components working together:
 
 2. `llama_handler.py`: This file contains the logic for interacting with the Llama model. It sends the extracted PDF content to the model and processes the response.
 
-3. `csv_handler.py`: This file (not shown in the provided code) likely handles the creation and updating of the CSV file with the extracted information.
+3. `csv_handler.py`: This file handles the creation and updating of the CSV file with the extracted information.
 
 The general flow of the application is as follows:
 
-1. The user specifies a directory and an output CSV file.
-2. The application scans the directory and its subdirectories for PDF files.
-3. For each PDF file:
+1. The user specifies a directory, an output CSV file, and optional parameters using command-line arguments.
+2. The application scans the directory (and subdirectories if specified) for PDF files matching the given pattern.
+3. For each matching PDF file:
    a. The text is extracted (using OCR if needed).
    b. The extracted text is sent to the Llama model.
    c. The model extracts key information (number, name, price, date).
