@@ -1,22 +1,37 @@
-# PDF Information Extractor
+# AI powered pdf sorter
 
-This project is designed to process PDF files, extract key information, and store it in a CSV file. It uses OCR capabilities when necessary and leverages the Llama model for information extraction.
+This project is designed to process PDF files, extract key information, and organize them based on the extracted data. It uses OCR capabilities when necessary and leverages the Llama model for information extraction.
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Running the Project](#running-the-project)
-3. [Command-Line Options](#command-line-options)
-4. [Running Unit Tests](#running-unit-tests)
-5. [Global Usage](#global-usage)
+1. [Features](#features)
+2. [Installation](#installation)
+3. [Usage](#usage)
+4. [Command-Line Options](#command-line-options)
+5. [Document Types](#document-types)
 6. [Project Structure](#project-structure)
+7. [Contributing](#contributing)
+8. [License](#license)
+
+## Features
+
+- Extract text from PDF files (with OCR support for scanned documents)
+- Analyze documents to extract key information:
+  - Date
+  - Document type
+  - Emitter
+  - Recipient
+- Organize files based on extracted information
+- Colored console output for better readability
+- Dry run capability to simulate processing without moving files
+- Recursive directory scanning option
 
 ## Installation
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/pdf-information-extractor.git
-   cd pdf-information-extractor
+   git clone https://github.com/xblaster/ai-powered-pdf-sorter.git
+   cd ai-powered-pdf-sorter
    ```
 
 2. Create a virtual environment (optional but recommended):
@@ -30,111 +45,89 @@ This project is designed to process PDF files, extract key information, and stor
    pip install -r requirements.txt
    ```
 
-## Running the Project
+## Usage
 
 To process PDF files and extract information:
 
 ```
-python file_scanner.py /path/to/pdf/directory output.csv
+python main.py /path/to/pdf/directory /path/to/output/directory
 ```
 
-Replace `/path/to/pdf/directory` with the directory containing your PDF files, and `output.csv` with your desired output file name.
+Replace `/path/to/pdf/directory` with the directory containing your PDF files, and `/path/to/output/directory` with your desired output directory.
 
 ## Command-Line Options
 
 The script supports the following command-line options:
 
 ```
-usage: file_scanner.py [-h] [-n NAME] [-r] [-p PATTERN] [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}] directory csv_file
+usage: main.py [-h] [--dry-run] [--recursive] [--verbose] input_directory output_directory
 
-Process PDF files in a directory and extract information.
+Process PDF files and organize them based on extracted information.
 
 positional arguments:
-  directory             The directory to scan for PDF files.
-  csv_file              The CSV file to write the extracted information.
+  input_directory   The directory to scan for PDF files.
+  output_directory  The base directory to organize the files into.
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -n NAME, --name NAME  The name to use in the LLaMA query (default: Pauline OLTMANNS)
-  -r, --recursive       Scan subdirectories recursively
-  -p PATTERN, --pattern PATTERN
-                        File pattern to match (default: *.pdf)
-  -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-                        Set the logging level
+  -h, --help        show this help message and exit
+  --dry-run         Simulate the process without moving files.
+  --recursive, -r   Scan subdirectories recursively.
+  --verbose, -v     Enable verbose output.
 ```
 
 Examples:
 
 1. Process all PDF files in a directory and its subdirectories:
    ```
-   python file_scanner.py /path/to/pdfs output.csv -r
+   python main.py /path/to/pdfs /path/to/output --recursive
    ```
 
-2. Process only files matching a specific pattern:
+2. Perform a dry run to see what would happen without actually moving files:
    ```
-   python file_scanner.py /path/to/pdfs output.csv -p "invoice*.pdf"
-   ```
-
-3. Set a custom name for the LLaMA query:
-   ```
-   python file_scanner.py /path/to/pdfs output.csv -n "John Doe"
+   python main.py /path/to/pdfs /path/to/output --dry-run
    ```
 
-4. Set the logging level to DEBUG:
+3. Enable verbose output for detailed information:
    ```
-   python file_scanner.py /path/to/pdfs output.csv -l DEBUG
+   python main.py /path/to/pdfs /path/to/output --verbose
    ```
 
-## Running Unit Tests
+## Document Types
 
-To run the unit tests:
+The system recognizes the following document types:
 
-```
-python -m unittest test_pdf_processor.py
-```
-
-This will execute all the test cases defined in the `test_pdf_processor.py` file.
-
-## Global Usage
-
-The PDF Information Extractor consists of several components working together:
-
-1. `file_scanner.py`: This is the main entry point. It scans the specified directory for PDF files, extracts text from them (using OCR if necessary), and calls the Llama model to extract relevant information.
-
-2. `llama_handler.py`: This file contains the logic for interacting with the Llama model. It sends the extracted PDF content to the model and processes the response.
-
-3. `csv_handler.py`: This file handles the creation and updating of the CSV file with the extracted information.
-
-The general flow of the application is as follows:
-
-1. The user specifies a directory, an output CSV file, and optional parameters using command-line arguments.
-2. The application scans the directory (and subdirectories if specified) for PDF files matching the given pattern.
-3. For each matching PDF file:
-   a. The text is extracted (using OCR if needed).
-   b. The extracted text is sent to the Llama model.
-   c. The model extracts key information (number, name, price, date).
-   d. The extracted information is written to the CSV file.
+- `facture`: A bill or invoice for goods or services
+- `devis`: A quote or estimate for goods or services
+- `mail`: An email or written correspondence
+- `arrêt maladie`: A medical certificate or sick leave document
+- `impots`: Tax-related documents or forms
+- `relevé de comptes`: Bank statement or account summary
+- `autres`: Any other type of document not fitting the above categories
 
 ## Project Structure
 
 ```
 pdf-information-extractor/
 │
-├── file_scanner.py
-├── llama_handler.py
-├── csv_handler.py
-├── test_pdf_processor.py
+├── main.py
+├── document_analyzer.py
+├── file_organizer.py
+├── pdf_processor.py
 ├── requirements.txt
 └── README.md
 ```
 
-- `file_scanner.py`: Main script for scanning directories and processing PDFs
-- `llama_handler.py`: Handles interaction with the Llama model
-- `csv_handler.py`: Manages CSV file operations
-- `test_pdf_processor.py`: Contains unit tests
+- `main.py`: Main script for scanning directories and processing PDFs
+- `document_analyzer.py`: Handles document analysis and information extraction
+- `file_organizer.py`: Manages file organization based on extracted information
+- `pdf_processor.py`: Handles PDF text extraction (including OCR)
 - `requirements.txt`: Lists all Python dependencies
 - `README.md`: This file, containing project documentation
 
-## Note
+## Contributing
 
-Ensure that you have the necessary permissions to read the PDF files and write to the output CSV file. Also, make sure you have set up and configured the Llama model correctly as per the `ollama` library documentation.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
