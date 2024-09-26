@@ -1,8 +1,18 @@
 import ollama
 from datetime import datetime
 import time
+import json
+from colorama import Fore, Style
 
-valid_types = [ 'facture', 'devis', 'mail', 'arrêt maladie', 'impots', 'relevé de comptes', 'autres']
+valid_types = {
+    'facture': 'A bill or invoice for goods or services',
+    'devis': 'A quote or estimate for goods or services',
+    'mail': 'An email or written correspondence',
+    'arrêt maladie': 'A medical certificate or sick leave document',
+    'impots': 'Tax-related documents or forms',
+    'relevé de comptes': 'Bank statement or account summary',
+    'autres': 'Any other type of document not fitting the above categories'
+}
 
 def retry_extraction(extraction_func, content, max_retries=3):
     """
@@ -18,11 +28,11 @@ def retry_extraction(extraction_func, content, max_retries=3):
             result = extraction_func(content)
             return result
         except Exception as e:
-            print(f"Error in {extraction_func.__name__} (Attempt {attempt + 1}/{max_retries}): {str(e)}")
+            print(f"{Fore.YELLOW}Error in {extraction_func.__name__} (Attempt {attempt + 1}/{max_retries}): {str(e)}{Style.RESET_ALL}")
             if attempt < max_retries - 1:
-                print(f"Retrying ...")
+                print(f"{Fore.YELLOW}Retrying ...{Style.RESET_ALL}")
     
-    print(f"All retry attempts failed for {extraction_func.__name__}.")
+    print(f"{Fore.RED}All retry attempts failed for {extraction_func.__name__}.{Style.RESET_ALL}")
     return None
 
 def extract_date(content):
@@ -52,16 +62,24 @@ def extract_date(content):
         }],
     )
     
-    print("Date extraction response:", response['message'])
     return response['message']['tool_calls'][0]['function']['arguments']
 
 def extract_type(content):
     """Extracts the document type from the content."""
+    type_descriptions = "\n".join([f"- {type}: {description}" for type, description in valid_types.items()])
+    
     response = ollama.chat(
         model='llama3.2',
         messages=[{
             'role': 'user', 
-            'content': f'Determine the type of this document. Choose from: '+', '.join(valid_types)+'. \n\n### Document Content ###\n{content}'
+            'content': f'''Determine the type of this document. Choose from the following types and their descriptions:
+
+{type_descriptions}
+
+Analyze the content and choose the most appropriate type. If uncertain, choose 'autres'.
+
+### Document Content ###
+{content}'''
         }],
         tools=[{
             'type': 'function',
@@ -74,7 +92,7 @@ def extract_type(content):
                         'type': {
                             'type': 'string',
                             'description': 'The type of document.',
-                            'enum': valid_types
+                            'enum': list(valid_types.keys())
                         },
                     },
                     'required': ['type'],
@@ -83,8 +101,9 @@ def extract_type(content):
         }],
     )
     
-    print("Type extraction response:", response['message'])
-    return response['message']['tool_calls'][0]['function']['arguments']
+    extracted_type = response['message']['tool_calls'][0]['function']['arguments']
+    print(f"{Fore.CYAN}Extracted type:{Style.RESET_ALL} {extracted_type['type']} ({valid_types[extracted_type['type']]})")
+    return extracted_type
 
 def extract_emitter(content):
     """Extracts the emitter from the document content."""
@@ -113,7 +132,6 @@ def extract_emitter(content):
         }],
     )
     
-    print("Emitter extraction response:", response['message'])
     return response['message']['tool_calls'][0]['function']['arguments']
 
 def extract_recipient(content):
@@ -144,7 +162,6 @@ def extract_recipient(content):
         }],
     )
     
-    print("Recipient extraction response:", response['message'])
     return response['message']['tool_calls'][0]['function']['arguments']
 
 def analyze_document(content, max_retries=3):
@@ -162,7 +179,7 @@ def analyze_document(content, max_retries=3):
     if date_info:
         extracted_info.update(date_info)
     else:
-        print("Failed to extract date after all retries. Aborting analysis.")
+        print(f"{Fore.RED}Failed to extract date after all retries. Aborting analysis.{Style.RESET_ALL}")
         return None
 
     # Extract type with retry
@@ -170,7 +187,7 @@ def analyze_document(content, max_retries=3):
     if type_info:
         extracted_info.update(type_info)
     else:
-        print("Failed to extract document type after all retries. Aborting analysis.")
+        print(f"{Fore.RED}Failed to extract document type after all retries. Aborting analysis.{Style.RESET_ALL}")
         return None
 
     # Extract emitter with retry
@@ -178,14 +195,14 @@ def analyze_document(content, max_retries=3):
     if emitter_info:
         extracted_info.update(emitter_info)
     else:
-        print("Failed to extract emitter after all retries. Continuing with partial information.")
+        print(f"{Fore.YELLOW}Failed to extract emitter after all retries. Continuing with partial information.{Style.RESET_ALL}")
 
     # Extract recipient with retry
     recipient_info = retry_extraction(extract_recipient, content, max_retries)
     if recipient_info:
         extracted_info.update(recipient_info)
     else:
-        print("Failed to extract recipient after all retries. Continuing with partial information.")
+        print(f"{Fore.YELLOW}Failed to extract recipient after all retries. Continuing with partial information.{Style.RESET_ALL}")
 
     try:
         # Validate date format
@@ -195,9 +212,11 @@ def analyze_document(content, max_retries=3):
         if extracted_info['type'] not in valid_types:
             raise ValueError(f"Invalid document type: {extracted_info['type']}")
         
-        print("Final extracted information:", extracted_info)
+        print(f"{Fore.GREEN}Final extracted information:{Style.RESET_ALL}")
+        for key, value in extracted_info.items():
+            print(f"  {Fore.CYAN}{key}:{Style.RESET_ALL} {value}")
         return extracted_info
 
     except Exception as e:
-        print(f"Error in final validation: {str(e)}")
+        print(f"{Fore.RED}Error in final validation: {str(e)}{Style.RESET_ALL}")
         return None
