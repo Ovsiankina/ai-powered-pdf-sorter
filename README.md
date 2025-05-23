@@ -58,12 +58,12 @@ This project is designed to process PDF files, extract key information, and orga
     ollama pull <ollamanModel>
     ```
 
-By default, the app uses the Ollama Model "Llama3.2".
-You can change it to whatever Ollama model you'd like as long as it supports
-tools.
-
-To modify the model, change the calue of the `ollamaModel` variable on line 17 
-of `./document_analyzer.py`.
+    By default, the app uses the Ollama Model "Llama3.2".
+    You can change it to whatever Ollama model you'd like as long as it supports
+    tools.
+    
+    To modify the model, change the calue of the `ollamaModel` variable on line 17 
+    of `./document_analyzer.py`.
 
 6. Keep ollama running in the background with `ollama serve` and run the app. 
 
