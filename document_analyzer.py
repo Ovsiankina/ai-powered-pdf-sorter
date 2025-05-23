@@ -14,7 +14,7 @@ valid_types = {
     "autres": "Any other type of document not fitting the above categories",
 }
 
-ollamaModel = "qwen3:1.7b"
+ollamaModel = "Llama3.2"
 
 
 def retry_extraction(extraction_func, content, max_retries=3):

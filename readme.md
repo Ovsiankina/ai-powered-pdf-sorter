@@ -30,7 +30,7 @@ This project is designed to process PDF files, extract key information, and orga
 
 1. Clone this repository:
    ```
-   git clone https://github.com/xblaster/ai-powered-pdf-sorter.git
+   git clone https://github.com/Ovsiankina/ai-powered-pdf-sorter.git
    cd ai-powered-pdf-sorter
    ```
 
@@ -40,10 +40,32 @@ This project is designed to process PDF files, extract key information, and orga
    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
    ```
 
-3. Install the required dependencies:
+3. Install the required python dependencies:
    ```
    pip install -r requirements.txt
    ```
+4. Install the required system depedencies:
+```
+# On arch linux:
+sudo pacman -S tesseract tesseract-data-eng ollama
+```
+
+5. Initiate Ollama:
+```
+ollama serve
+
+# In another terminal
+ollama pull <ollamanModel>
+```
+
+By default, the app uses the Ollama Model "Llama3.2".
+You can change it to whatever Ollama model you'd like as long as it supports
+tools.
+
+To modify the model, change the calue of the `ollamaModel` variable on line 17 
+of `./document_analyzer.py`.
+
+6. Keep ollama running in the background with `ollama serve` and run the app. 
 
 ## Usage
 
