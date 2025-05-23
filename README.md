@@ -62,7 +62,7 @@ This project is designed to process PDF files, extract key information, and orga
     You can change it to whatever Ollama model you'd like as long as it supports
     tools.
     
-    To modify the model, change the calue of the `ollamaModel` variable on line 17 
+    To modify the model, change the value of the `ollamaModel` variable on line 17 
     of `./document_analyzer.py`.
 
 6. Keep ollama running in the background with `ollama serve` and run the app. 
