@@ -13,6 +13,7 @@ def organize_file(file_path, output_directory, doc_info):
     """
     try:
         # Extract information
+        subject = doc_info['subject']
         date = datetime.strptime(doc_info['date'], "%Y-%m-%d")
         doc_type = doc_info['type']
         emitter = doc_info['emitter']
@@ -24,7 +25,7 @@ def organize_file(file_path, output_directory, doc_info):
 
         # Create new filename
         file_name = os.path.basename(file_path)
-        new_file_name = f"{emitter} - {recipient} - {file_name}"
+        new_file_name = f"{subject} - {emitter} - {recipient} - {file_name}"
         new_file_path = os.path.join(new_dir, new_file_name)
 
         # Move the file
