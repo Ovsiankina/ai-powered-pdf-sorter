@@ -5,19 +5,22 @@ import json
 from colorama import Fore, Style
 
 valid_types = {
-    'facture': 'A bill or invoice for goods or services',
-    'devis': 'A quote or estimate for goods or services',
-    'mail': 'An email or written correspondence',
-    'arrêt maladie': 'A medical certificate or sick leave document',
-    'impots': 'Tax-related documents or forms',
-    'relevé de comptes': 'Bank statement or account summary',
-    'autres': 'Any other type of document not fitting the above categories'
+    "facture": "A bill or invoice for goods or services",
+    "devis": "A quote or estimate for goods or services",
+    "mail": "An email or written correspondence",
+    "arrêt maladie": "A medical certificate or sick leave document",
+    "impots": "Tax-related documents or forms",
+    "relevé de comptes": "Bank statement or account summary",
+    "autres": "Any other type of document not fitting the above categories",
 }
+
+ollamaModel = "qwen3:1.7b"
+
 
 def retry_extraction(extraction_func, content, max_retries=3):
     """
     Generic retry function for extractions.
-    
+
     :param extraction_func: The extraction function to retry.
     :param content: The document content to extract from.
     :param max_retries: Maximum number of retry attempts (default is 3).
@@ -28,24 +31,95 @@ def retry_extraction(extraction_func, content, max_retries=3):
             result = extraction_func(content)
             return result
         except Exception as e:
-            print(f"{Fore.YELLOW}Error in {extraction_func.__name__} (Attempt {attempt + 1}/{max_retries}): {str(e)}{Style.RESET_ALL}")
+            print(
+                f"{Fore.YELLOW}Error in {extraction_func.__name__} (Attempt {
+                    attempt + 1}/{max_retries}): {str(e)}{Style.RESET_ALL}"
+            )
             if attempt < max_retries - 1:
                 print(f"{Fore.YELLOW}Retrying ...{Style.RESET_ALL}")
-    
-    print(f"{Fore.RED}All retry attempts failed for {extraction_func.__name__}.{Style.RESET_ALL}")
+
+    print(
+        f"{Fore.RED}All retry attempts failed for {
+            extraction_func.__name__}.{Style.RESET_ALL}"
+    )
     return None
+
+
+def extract_subject(content):
+    """Extracts the subject from the document content."""
+    response = ollama.chat(
+        model=ollamaModel,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert document analyzer specializing in date extraction. Your task is to accurately identify and extract the subject of the document from the given content.",
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze the following document content and extract the date of document production.
+
+Instructions:
+1. Carefully read through the entire document.
+2. Look for any titles or subjects of the document. Focus on what summerizes clearly the nature of the document.
+3. If there's no clear titles or subjects, make one yourself that summerizes quickly in short terms what is the nature of this document.
+
+Examples:
+Input: "CERTIFICAT MÉDICAL"
+Output: {{"subject": "CERTIFICAT MÉDICAL",
+    "reasoning": "The subject of the document is clearly stating that this is a medical certificate."}}
+
+Input (Without a clear title): "Facture n 2329 - Loyer mensuel fèvr - Studio "
+Output: {{"subject": "Loyer Mensuel Studio",
+    "reasoning": "The document doesn't have a clear title but it's clearly a bill for february's rent."}}
+
+Now, analyze this document content:
+
+{content}
+
+Provide your extraction using the push_extracted_date function.""",
+            },
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "push_extracted_date",
+                    "description": "Push extracted date and reasoning",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subject": {
+                                "type": "string",
+                                "description": "The title or subject of the document.",
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation for the chosen title or subject and where it has been found in the document or not.",
+                            },
+                        },
+                        "required": ["subject", "reasoning"],
+                    },
+                },
+            }
+        ],
+    )
+
+    # return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+    return response["message"]["tool_calls"][0]["function"]["arguments"]
+
 
 def extract_date(content):
     """Extracts the date from the document content."""
     response = ollama.chat(
-        model='llama3.2',
-        messages=[{
-            'role': 'system',
-            'content': 'You are an expert document analyzer specializing in date extraction. Your task is to accurately identify and extract the date of document production from the given content.'
-        },
-        {
-            'role': 'user', 
-            'content': f'''Analyze the following document content and extract the date of document production.
+        model=ollamaModel,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert document analyzer specializing in date extraction. Your task is to accurately identify and extract the date of document production from the given content.",
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze the following document content and extract the date of document production.
 
 Instructions:
 1. Carefully read through the entire document.
@@ -59,55 +133,65 @@ Instructions:
 
 Examples:
 Input: "Invoice dated 15/04/2023 for services rendered in March 2023"
-Output: {"date": "2023-04-15", "reasoning": "Explicit invoice date provided in DD/MM/YYYY format."}
+Output: {{"date": "2023-04-15",
+    "reasoning": "Explicit invoice date provided in DD/MM/YYYY format."}}
 
 Input: "Quarterly report - Q2 2023"
-Output: {"date": "2023-04-01", "reasoning": "Document is for Q2 2023. Used the first day of the quarter as the best estimate."}
+Output: {{"date": "2023-04-01",
+    "reasoning": "Document is for Q2 2023. Used the first day of the quarter as the best estimate."}}
 
 Now, analyze this document content:
 
 {content}
 
-Provide your extraction using the push_extracted_date function.'''
-        }],
-        tools=[{
-            'type': 'function',
-            'function': {
-                'name': 'push_extracted_date',
-                'description': 'Push extracted date and reasoning',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'date': {   
-                            'type': 'string',
-                            'description': 'The date of the document in YYYY-MM-DD format.',
-                        },
-                        'reasoning': {
-                            'type': 'string',
-                            'description': 'Explanation for the chosen date.',
-                        },
-                    },
-                    'required': ['date', 'reasoning'],
-                },
+Provide your extraction using the push_extracted_date function.""",
             },
-        }],
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "push_extracted_date",
+                    "description": "Push extracted date and reasoning",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "date": {
+                                "type": "string",
+                                "description": "The date of the document in YYYY-MM-DD format.",
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation for the chosen date.",
+                            },
+                        },
+                        "required": ["date", "reasoning"],
+                    },
+                },
+            }
+        ],
     )
-    
-    return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+
+    # return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+    return response["message"]["tool_calls"][0]["function"]["arguments"]
+
 
 def extract_type(content):
     """Extracts the document type from the content."""
-    type_descriptions = "\n".join([f"- {type}: {description}" for type, description in valid_types.items()])
-    
+    type_descriptions = "\n".join(
+        [f"- {type}: {description}" for type, description in valid_types.items()]
+    )
+
     response = ollama.chat(
-        model='llama3.2',
-        messages=[{
-            'role': 'system',
-            'content': 'You are an expert document classifier with deep knowledge of various document types and their characteristics.'
-        },
-        {
-            'role': 'user', 
-            'content': f'''Analyze the following document content and determine its type based on the given categories.
+        model=ollamaModel,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert document classifier with deep knowledge of various document types and their characteristics.",
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze the following document content and determine its type based on the given categories.
 
 Document Types:
 {type_descriptions}
@@ -136,48 +220,62 @@ Now, analyze this document content:
 
 {content}
 
-Provide your classification using the push_extracted_type function.'''
-        }],
-        tools=[{
-            'type': 'function',
-            'function': {
-                'name': 'push_extracted_type',
-                'description': 'Push extracted document type and reasoning',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'type': {
-                            'type': 'string',
-                            'description': 'The type of document.',
-                            'enum': list(valid_types.keys())
-                        },
-                        'reasoning': {
-                            'type': 'string',
-                            'description': 'Explanation for the chosen document type.',
-                        },
-                    },
-                    'required': ['type', 'reasoning'],
-                },
+Provide your classification using the push_extracted_type function.""",
             },
-        }],
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "push_extracted_type",
+                    "description": "Push extracted document type and reasoning",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "The type of document.",
+                                "enum": list(valid_types.keys()),
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation for the chosen document type.",
+                            },
+                        },
+                        "required": ["type", "reasoning"],
+                    },
+                },
+            }
+        ],
     )
-    
-    extracted_info = json.loads(response['message']['tool_calls'][0]['function']['arguments'])
-    print(f"{Fore.CYAN}Extracted type:{Style.RESET_ALL} {extracted_info['type']} ({valid_types[extracted_info['type']]})")
-    print(f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {extracted_info['reasoning']}")
+
+    # extracted_info = json.loads(
+    #     response['message']['tool_calls'][0]['function']['arguments'])
+    extracted_info = response["message"]["tool_calls"][0]["function"]["arguments"]
+
+    print(
+        f"{Fore.CYAN}Extracted type:{Style.RESET_ALL} {
+            extracted_info['type']} ({valid_types[extracted_info['type']]})"
+    )
+    print(
+        f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {
+            extracted_info['reasoning']}"
+    )
     return extracted_info
+
 
 def extract_emitter(content):
     """Extracts the emitter from the document content."""
     response = ollama.chat(
-        model='llama3.2',
-        messages=[{
-            'role': 'system',
-            'content': 'You are an expert in document analysis, specializing in identifying the sources or creators of documents.'
-        },
-        {
-            'role': 'user', 
-            'content': f'''Analyze the following document content and extract the name of the person or organization who sent or created this document.
+        model=ollamaModel,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert in document analysis, specializing in identifying the sources or creators of documents.",
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze the following document content and extract the name of the person or organization who sent or created this document.
 
 Instructions:
 1. Carefully examine the document for sender information, typically found at the top or bottom of the document.
@@ -188,58 +286,66 @@ Instructions:
 
 Examples:
 Input: "From: Acme Corporation\nTo: John Doe\nSubject: Invoice for Services"
-Output: {{"emitter": "Acme Corporation", "confidence": "High", "reasoning": "Clearly stated as the sender at the beginning of the document."}}
+Output: {{"emitter": "Acme Corporation", "confidence": "High",
+    "reasoning": "Clearly stated as the sender at the beginning of the document."}}
 
 Input: "Thank you for your purchase. If you have any questions, please contact support@techstore.com"
-Output: {{"emitter": "TechStore", "confidence": "Medium", "reasoning": "Inferred from the support email domain, but company name not explicitly stated."}}
+Output: {{"emitter": "TechStore", "confidence": "Medium",
+    "reasoning": "Inferred from the support email domain, but company name not explicitly stated."}}
 
 Now, analyze this document content:
 
 {content}
 
-Provide your extraction using the push_extracted_emitter function.'''
-        }],
-        tools=[{
-            'type': 'function',
-            'function': {
-                'name': 'push_extracted_emitter',
-                'description': 'Push extracted emitter, confidence, and reasoning',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'emitter': {
-                            'type': 'string',
-                            'description': 'The name of the person or organization who sent or created the document.',
-                        },
-                        'confidence': {
-                            'type': 'string',
-                            'enum': ['High', 'Medium', 'Low'],
-                            'description': 'Confidence level of the extraction.',
-                        },
-                        'reasoning': {
-                            'type': 'string',
-                            'description': 'Explanation for the chosen emitter and confidence level.',
-                        },
-                    },
-                    'required': ['emitter', 'confidence', 'reasoning'],
-                },
+Provide your extraction using the push_extracted_emitter function.""",
             },
-        }],
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "push_extracted_emitter",
+                    "description": "Push extracted emitter, confidence, and reasoning",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "emitter": {
+                                "type": "string",
+                                "description": "The name of the person or organization who sent or created the document.",
+                            },
+                            "confidence": {
+                                "type": "string",
+                                "enum": ["High", "Medium", "Low"],
+                                "description": "Confidence level of the extraction.",
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation for the chosen emitter and confidence level.",
+                            },
+                        },
+                        "required": ["emitter", "confidence", "reasoning"],
+                    },
+                },
+            }
+        ],
     )
-    
-    return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+
+    # return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+    return response["message"]["tool_calls"][0]["function"]["arguments"]
+
 
 def extract_recipient(content):
     """Extracts the recipient from the document content."""
     response = ollama.chat(
-        model='llama3.2',
-        messages=[{
-            'role': 'system',
-            'content': 'You are an expert in document analysis, specializing in identifying the intended recipients of documents.'
-        },
-        {
-            'role': 'user', 
-            'content': f'''Analyze the following document content and extract the name of the person or organization who received this document.
+        model=ollamaModel,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert in document analysis, specializing in identifying the intended recipients of documents.",
+            },
+            {
+                "role": "user",
+                "content": f"""Analyze the following document content and extract the name of the person or organization who received this document.
 
 Instructions:
 1. Carefully examine the document for recipient information, typically found near the top of the document.
@@ -251,112 +357,187 @@ Instructions:
 
 Examples:
 Input: "Dear Mr. OLTMANNS, We are pleased to inform you that your application has been accepted."
-Output: {{"recipient": "OLTMANNS", "confidence": "High", "reasoning": "Directly addressed in the salutation of the document."}}
+Output: {{"recipient": "OLTMANNS", "confidence": "High",
+    "reasoning": "Directly addressed in the salutation of the document."}}
 
 Input: "Invoice for services rendered to WAX Industries during Q2 2023"
-Output: {{"recipient": "WAX", "confidence": "High", "reasoning": "WAX Industries mentioned as the client for the invoiced services."}}
+Output: {{"recipient": "WAX", "confidence": "High",
+    "reasoning": "WAX Industries mentioned as the client for the invoiced services."}}
 
 Now, analyze this document content:
 
 {content}
 
-Provide your extraction using the push_extracted_recipient function.'''
-        }],
-        tools=[{
-            'type': 'function',
-            'function': {
-                'name': 'push_extracted_recipient',
-                'description': 'Push extracted recipient, confidence, and reasoning',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'recipient': {
-                            'type': 'string',
-                            'description': 'The name of the person or organization who received the document.',
-                            'enum': ['Jérôme', 'Pauline', 'Grégoire', 'OLTMANNS', 'WAX']
-                        },
-                        'confidence': {
-                            'type': 'string',
-                            'enum': ['High', 'Medium', 'Low'],
-                            'description': 'Confidence level of the extraction.',
-                        },
-                        'reasoning': {
-                            'type': 'string',
-                            'description': 'Explanation for the chosen recipient and confidence level.',
-                        },
-                    },
-                    'required': ['recipient', 'confidence', 'reasoning'],
-                },
+Provide your extraction using the push_extracted_recipient function.""",
             },
-        }],
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "push_extracted_recipient",
+                    "description": "Push extracted recipient, confidence, and reasoning",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "recipient": {
+                                "type": "string",
+                                "description": "The name of the person or organization who received the document.",
+                                "enum": [
+                                    "Jérôme",
+                                    "Pauline",
+                                    "Grégoire",
+                                    "OLTMANNS",
+                                    "WAX",
+                                ],
+                            },
+                            "confidence": {
+                                "type": "string",
+                                "enum": ["High", "Medium", "Low"],
+                                "description": "Confidence level of the extraction.",
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation for the chosen recipient and confidence level.",
+                            },
+                        },
+                        "required": ["recipient", "confidence", "reasoning"],
+                    },
+                },
+            }
+        ],
     )
-    
-    return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+
+    # return json.loads(response['message']['tool_calls'][0]['function']['arguments'])
+    return response["message"]["tool_calls"][0]["function"]["arguments"]
+
 
 def analyze_document(content, max_retries=3):
     """
     Analyzes the document content to extract required information using the Llama model.
-    
+
     :param content: The text content of the document.
     :param max_retries: Maximum number of retry attempts for each extraction (default is 3).
     :return: A dictionary containing extracted information or None if critical extractions fail.
     """
     extracted_info = {}
 
+    # Extract subject with retry
+    subject_info = retry_extraction(extract_subject, content, max_retries)
+    if subject_info:
+        extracted_info["subject"] = subject_info["subject"]
+        print(
+            f"{Fore.GREEN}Subject extracted:{
+                Style.RESET_ALL} {subject_info['subject']}"
+        )
+        print(
+            f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {
+                subject_info['reasoning']}"
+        )
+    else:
+        print(
+            f"{Fore.RED}Failed to extract subject after all retries. Aborting analysis.{
+                Style.RESET_ALL}"
+        )
+        return None
+
     # Extract date with retry
     date_info = retry_extraction(extract_date, content, max_retries)
     if date_info:
-        extracted_info['date'] = date_info['date']
-        print(f"{Fore.GREEN}Date extracted:{Style.RESET_ALL} {date_info['date']}")
-        print(f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {date_info['reasoning']}")
+        extracted_info["date"] = date_info["date"]
+        print(
+            f"{Fore.GREEN}Date extracted:{
+                Style.RESET_ALL} {date_info['date']}"
+        )
+        print(
+            f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {
+                date_info['reasoning']}"
+        )
     else:
-        print(f"{Fore.RED}Failed to extract date after all retries. Aborting analysis.{Style.RESET_ALL}")
+        print(
+            f"{Fore.RED}Failed to extract date after all retries. Aborting analysis.{
+                Style.RESET_ALL}"
+        )
         return None
 
     # Extract type with retry
     type_info = retry_extraction(extract_type, content, max_retries)
     if type_info:
-        extracted_info['type'] = type_info['type']
+        extracted_info["type"] = type_info["type"]
     else:
-        print(f"{Fore.RED}Failed to extract document type after all retries. Aborting analysis.{Style.RESET_ALL}")
+        print(
+            f"{Fore.RED}Failed to extract document type after all retries. Aborting analysis.{
+                Style.RESET_ALL}"
+        )
         return None
 
     # Extract emitter with retry
     emitter_info = retry_extraction(extract_emitter, content, max_retries)
     if emitter_info:
-        extracted_info['emitter'] = emitter_info['emitter']
-        print(f"{Fore.GREEN}Emitter extracted:{Style.RESET_ALL} {emitter_info['emitter']}")
-        print(f"{Fore.CYAN}Confidence:{Style.RESET_ALL} {emitter_info['confidence']}")
-        print(f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {emitter_info['reasoning']}")
+        extracted_info["emitter"] = emitter_info["emitter"]
+        print(
+            f"{Fore.GREEN}Emitter extracted:{
+                Style.RESET_ALL} {emitter_info['emitter']}"
+        )
+        print(
+            f"{Fore.CYAN}Confidence:{Style.RESET_ALL} {
+                emitter_info['confidence']}"
+        )
+        print(
+            f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {
+                emitter_info['reasoning']}"
+        )
     else:
-        print(f"{Fore.YELLOW}Failed to extract emitter after all retries. Continuing with partial information.{Style.RESET_ALL}")
+        print(
+            f"{Fore.YELLOW}Failed to extract emitter after all retries. Continuing with partial information.{
+                Style.RESET_ALL}"
+        )
 
     # Extract recipient with retry
     recipient_info = retry_extraction(extract_recipient, content, max_retries)
     if recipient_info:
-        extracted_info['recipient'] = recipient_info['recipient']
-        print(f"{Fore.GREEN}Recipient extracted:{Style.RESET_ALL} {recipient_info['recipient']}")
-        print(f"{Fore.CYAN}Confidence:{Style.RESET_ALL} {recipient_info['confidence']}")
-        print(f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {recipient_info['reasoning']}")
+        extracted_info["recipient"] = recipient_info["recipient"]
+        print(
+            f"{Fore.GREEN}Recipient extracted:{
+                Style.RESET_ALL} {recipient_info['recipient']}"
+        )
+        print(
+            f"{Fore.CYAN}Confidence:{Style.RESET_ALL} {
+                recipient_info['confidence']}"
+        )
+        print(
+            f"{Fore.CYAN}Reasoning:{Style.RESET_ALL} {
+                recipient_info['reasoning']}"
+        )
     else:
-        print(f"{Fore.YELLOW}Failed to extract recipient after all retries. Continuing with partial information.{Style.RESET_ALL}")
+        print(
+            f"{Fore.YELLOW}Failed to extract recipient after all retries. Continuing with partial information.{
+                Style.RESET_ALL}"
+        )
 
     try:
         # Validate date format
-        datetime.strptime(extracted_info['date'], "%Y-%m-%d")
-        
+        datetime.strptime(extracted_info["date"], "%Y-%m-%d")
+
         # Validate document type
-        if extracted_info['type'] not in valid_types:
-            raise ValueError(f"Invalid document type: {extracted_info['type']}")
-        
+        if extracted_info["type"] not in valid_types:
+            raise ValueError(
+                f"Invalid document type: {
+                    extracted_info['type']}"
+            )
+
         print(f"{Fore.GREEN}Final extracted information:{Style.RESET_ALL}")
         for key, value in extracted_info.items():
             print(f"  {Fore.CYAN}{key}:{Style.RESET_ALL} {value}")
         return extracted_info
 
     except Exception as e:
-        print(f"{Fore.RED}Error in final validation: {str(e)}{Style.RESET_ALL}")
+        print(
+            f"{Fore.RED}Error in final validation: {
+                str(e)}{Style.RESET_ALL}"
+        )
         return None
+
 
 # Main execution
 if __name__ == "__main__":
@@ -391,6 +572,9 @@ if __name__ == "__main__":
 
     result = analyze_document(sample_content)
     if result:
-        print(f"{Fore.GREEN}Document analysis completed successfully.{Style.RESET_ALL}")
+        print(
+            f"{Fore.GREEN}Document analysis completed successfully.{
+                Style.RESET_ALL}"
+        )
     else:
         print(f"{Fore.RED}Document analysis failed.{Style.RESET_ALL}")
