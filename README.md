@@ -45,18 +45,18 @@ This project is designed to process PDF files, extract key information, and orga
    pip install -r requirements.txt
    ```
 4. Install the required system depedencies:
-```
-# On arch linux:
-sudo pacman -S tesseract tesseract-data-eng ollama
-```
+    ```
+    # On arch linux:
+    sudo pacman -S tesseract tesseract-data-eng ollama
+    ```
 
 5. Initiate Ollama:
-```
-ollama serve
-
-# In another terminal
-ollama pull <ollamanModel>
-```
+    ```
+    ollama serve
+    
+    # In another terminal
+    ollama pull <ollamanModel>
+    ```
 
 By default, the app uses the Ollama Model "Llama3.2".
 You can change it to whatever Ollama model you'd like as long as it supports
