@@ -146,6 +146,13 @@ pdf-information-extractor/
 - `requirements.txt`: Lists all Python dependencies
 - `README.md`: This file, containing project documentation
 
+## Known limitations
+
+In the current state, the app recognizes only a very small "hard coded" set
+of document types.
+In the future, It'd be nice to have the document type description in a file that
+can be edited by the model itself.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
